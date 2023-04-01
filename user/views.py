@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 import random
 import string
 from user.serializers import UserDetailsSerializer, UserRoundsSerializer
-from user.models import UserRounds
+from user.models import UserDetails, UserRounds
 
 
 class LoginAPIView(GenericAPIView):
@@ -30,10 +30,7 @@ class LoginAPIView(GenericAPIView):
             user = User.objects.create_user(username=email, password=password)
 
         data["token"] = AuthToken.objects.create(user)[1]
-        try:
-            rounds_obj = UserRounds.objects.get(user=user)
-        except Exception:
-            rounds_obj = UserRounds.objects.create(user=user)
+        rounds_obj, _ = UserRounds.objects.get_or_create(user=user)
         serializer = UserRoundsSerializer(rounds_obj)
         data["user_rounds"] = serializer.data
 
@@ -48,8 +45,8 @@ class UserDetailsAPIView(GenericAPIView):
     serializer_class = UserDetailsSerializer
 
     def post(self, request, *args, **kwargs):
-        rounds_obj = UserRounds.objects.get(user=request.user)
-        serializer = self.get_serializer(rounds_obj, data=request.data, partial=True)
+        user_details_obj, _ = UserDetails.objects.get_or_create(user=request.user)
+        serializer = self.get_serializer(user_details_obj, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
@@ -57,7 +54,7 @@ class UserDetailsAPIView(GenericAPIView):
         rounds_data = {
             "registered_round_one": True,
         }
-        rounds_obj = UserRounds.objects.get(user=request.user)
+        rounds_obj = request.user.rounds
         rounds_serializer = UserRoundsSerializer(
             rounds_obj, data=rounds_data, partial=True
         )
